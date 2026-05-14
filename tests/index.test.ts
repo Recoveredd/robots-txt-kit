@@ -102,6 +102,56 @@ describe("matchRobotsTxt", () => {
     });
   });
 
+  it("combines rules from groups with the same best matching user-agent", () => {
+    const robots = `User-agent: Googlebot
+Disallow: /a
+
+User-agent: *
+Disallow: /fallback
+
+User-agent: googlebot
+Allow: /a/public
+Disallow: /b
+`;
+
+    const combined = checkRobotsTxt(robots, "/a/public/page", {
+      userAgent: "Googlebot-News"
+    });
+    const denied = checkRobotsTxt(robots, "/b", {
+      userAgent: "Googlebot-News"
+    });
+    const fallback = checkRobotsTxt(robots, "/fallback", {
+      userAgent: "OtherBot"
+    });
+
+    expect(combined.allowed).toBe(true);
+    expect(combined.group?.sourceGroups).toEqual([0, 2]);
+    expect(denied.allowed).toBe(false);
+    expect(denied.rule).toMatchObject({ type: "disallow", path: "/b" });
+    expect(fallback.allowed).toBe(false);
+    expect(fallback.group?.sourceGroups).toBeUndefined();
+  });
+
+  it("uses the longest matching user-agent group without mixing the wildcard fallback", () => {
+    const robots = `User-agent: *
+Disallow: /
+
+User-agent: Googlebot
+Allow: /news
+
+User-agent: Googlebot-News
+Disallow: /news/private
+`;
+
+    const result = checkRobotsTxt(robots, "/news/private/story", {
+      userAgent: "Googlebot-News"
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.group?.agents).toEqual(["googlebot-news"]);
+    expect(result.rule).toMatchObject({ path: "/news/private" });
+  });
+
   it("lets allow win when specificity is tied", () => {
     const result = checkRobotsTxt(`User-agent: *\nDisallow: /feed\nAllow: /feed`, "/feed");
 
@@ -114,6 +164,26 @@ describe("matchRobotsTxt", () => {
     expect(checkRobotsTxt(robots, "/data/file.json").allowed).toBe(false);
     expect(checkRobotsTxt(robots, "/data/file.json?x=1").allowed).toBe(true);
     expect(checkRobotsTxt(robots, "/public/file.json").allowed).toBe(true);
+  });
+
+  it("treats empty Allow and Disallow values as no-op rules", () => {
+    const robots = `User-agent: *
+Disallow:
+Allow:
+Disallow: /blocked`;
+
+    expect(checkRobotsTxt(robots, "/").allowed).toBe(true);
+    expect(checkRobotsTxt(robots, "/blocked").allowed).toBe(false);
+  });
+
+  it("reports non-string URL inputs without throwing", () => {
+    const result = checkRobotsTxt("User-agent: *\nDisallow: /", null);
+
+    expect(result.path).toBe("/");
+    expect(result.allowed).toBe(false);
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "invalid-url" })
+    );
   });
 
   it("can match a pre-parsed document and custom default", () => {

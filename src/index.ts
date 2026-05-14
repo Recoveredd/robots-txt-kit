@@ -31,6 +31,7 @@ export type RobotsTxtGroup = {
   rules: RobotsTxtRule[];
   crawlDelay?: number;
   lines: number[];
+  sourceGroups?: number[];
 };
 
 export type RobotsTxtSitemap = {
@@ -216,7 +217,7 @@ export function parseRobotsTxt(input: unknown): ParseRobotsTxtResult {
 
 export function checkRobotsTxt(
   input: unknown,
-  urlOrPath: string,
+  urlOrPath: unknown,
   options: CheckRobotsTxtOptions = {}
 ): RobotsTxtMatch {
   const parsed = parseRobotsTxt(input);
@@ -232,7 +233,7 @@ export function checkRobotsTxt(
 
 export function matchRobotsTxt(
   document: RobotsTxtDocument,
-  urlOrPath: string,
+  urlOrPath: unknown,
   options: CheckRobotsTxtOptions & { diagnostics?: RobotsTxtDiagnostic[] } = {}
 ): RobotsTxtMatch {
   const diagnostics = [...(options.diagnostics ?? [])];
@@ -290,7 +291,14 @@ function normalizeAgent(value: string): string | undefined {
   return agent.length > 0 ? agent : undefined;
 }
 
-function normalizePath(urlOrPath: string, diagnostics: RobotsTxtDiagnostic[]): string {
+function normalizePath(urlOrPath: unknown, diagnostics: RobotsTxtDiagnostic[]): string {
+  if (typeof urlOrPath !== "string") {
+    diagnostics.push(
+      diagnostic("invalid-url", "URL input must be a string, so the root path was used.")
+    );
+    return "/";
+  }
+
   if (urlOrPath.startsWith("/")) return urlOrPath;
 
   try {
@@ -305,15 +313,47 @@ function normalizePath(urlOrPath: string, diagnostics: RobotsTxtDiagnostic[]): s
 }
 
 function selectGroup(groups: RobotsTxtGroup[], userAgent: string): RobotsTxtGroup | undefined {
-  let selected: { group: RobotsTxtGroup; score: number } | undefined;
+  let selectedScore = -1;
+  const selectedGroups: Array<{ group: RobotsTxtGroup; index: number }> = [];
 
-  for (const group of groups) {
+  groups.forEach((group, index) => {
     const score = Math.max(...group.agents.map((agent) => agentMatchScore(agent, userAgent)));
-    if (score < 0) continue;
-    if (!selected || score > selected.score) selected = { group, score };
+    if (score < 0) return;
+
+    if (score > selectedScore) {
+      selectedScore = score;
+      selectedGroups.length = 0;
+    }
+
+    if (score === selectedScore) {
+      selectedGroups.push({ group, index });
+    }
+  });
+
+  if (selectedGroups.length === 0) return undefined;
+  if (selectedGroups.length === 1) return selectedGroups[0]?.group;
+
+  const agents = new Set<string>();
+  const lines: number[] = [];
+  const rules: RobotsTxtRule[] = [];
+  let crawlDelay: number | undefined;
+
+  for (const { group } of selectedGroups) {
+    group.agents.forEach((agent) => agents.add(agent));
+    lines.push(...group.lines);
+    rules.push(...group.rules);
+    if (crawlDelay === undefined && group.crawlDelay !== undefined) {
+      crawlDelay = group.crawlDelay;
+    }
   }
 
-  return selected?.group;
+  return {
+    agents: [...agents],
+    rules,
+    lines,
+    ...(crawlDelay !== undefined ? { crawlDelay } : {}),
+    sourceGroups: selectedGroups.map((entry) => entry.index)
+  };
 }
 
 function agentMatchScore(agent: string, userAgent: string): number {

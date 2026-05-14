@@ -98,11 +98,12 @@ The MVP supports:
 
 - `User-agent`, `Allow`, `Disallow`, `Sitemap` and `Crawl-delay`;
 - grouped adjacent `User-agent` lines;
+- merging rules from multiple groups with the same best matching user-agent;
 - wildcard `*` and end-anchor `$` path matching;
 - most-specific rule selection, with `Allow` winning specificity ties;
 - browser, worker and build-tool usage with no runtime dependencies.
 
-It intentionally does not fetch remote `robots.txt` files, cache domains, implement every crawler-specific extension, or ship a public suffix list.
+It intentionally does not fetch remote `robots.txt` files, cache domains, implement every crawler-specific extension, ship a public suffix list, or replace crawler-specific validators. Treat it as a portable inspector for local policy checks.
 
 ## License
 

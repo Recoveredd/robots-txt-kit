@@ -2,7 +2,7 @@
 
 ## Verdict
 
-NO-GO publication pour l'instant. Le brouillon reste intéressant, mais la passe conformité stricte confirme qu'il ne faut pas le promouvoir sans durcir la sélection des groupes, les fixtures RFC 9309 et les cas crawler documentés. Il peut rester en brouillon à reprendre plus tard.
+À garder, mais pas encore à publier. La passe conformité stricte avait confirmé un NO-GO; une passe de durcissement a corrigé les plus gros points locaux, notamment les groupes multiples pour un même user-agent et les entrées runtime non-string. Il reste à ajouter des fixtures inspirées RFC/crawlers avant de le promouvoir.
 
 ## Shortlist exploratoire
 
@@ -132,22 +132,51 @@ Ce qui reste bon:
 - coeur browser-friendly sans fetch/cache implicite;
 - démo navigateur facile à imaginer.
 
+## Durcissement 2026-05-14
+
+Décision après durcissement: passer de NO-GO strict à "à garder". Le brouillon ne doit toujours pas être publié comme une implémentation complète de robots.txt, mais il n'a plus les lacunes les plus évidentes pour une inspection locale.
+
+Corrections faites:
+
+- fusion des règles quand plusieurs groupes ont le même meilleur match de user-agent;
+- non-mélange du fallback `*` quand un groupe plus spécifique existe;
+- tests sur `Disallow:` et `Allow:` vides comme règles no-op;
+- diagnostics au lieu d'exception quand l'URL/le chemin n'est pas une chaîne;
+- README repositionné en "portable inspector" plutôt que remplacement de validateurs crawler-specific.
+
+Validations après durcissement:
+
+- `npm run typecheck`: OK.
+- `npm test`: OK, 15 tests.
+- `npm run build`: OK.
+- `npm_config_cache=/private/tmp/robots-txt-kit-npm-cache npm pack --dry-run`: OK, 12.7 kB packed.
+- Smoke `dist`: fusion de groupes équivalents OK.
+
+Reste avant promotion:
+
+- fixtures RFC 9309 et documentation Google/Bing;
+- cas percent-encoding plus poussés;
+- décision sur une éventuelle CLI locale;
+- CI GitHub verte si le brouillon devient une vraie lib.
+
 ## Validations
 
 - Générateur interne lancé: `node scripts/create-lib.mjs robots-txt-kit --description "Parse and evaluate robots.txt rules with structured diagnostics." --keywords "robots,robots.txt,crawler,parser,seo" --no-git --install`.
 - L'installation du générateur est restée bloquée sans sortie; un second `npm install --package-lock-only --prefer-offline` avec cache local est également resté bloqué sans sortie.
 - Les deux installations ont fini en échec `ENOTFOUND registry.npmjs.org`.
 - Pour ne pas dépendre du registry, `node_modules` a été lié vers un brouillon local existant contenant les mêmes dépendances dev, et un `package-lock.json` local a été repris depuis un brouillon de même gabarit puis renommé.
-- `npm run typecheck`: OK.
-- `npm test`: OK, 11 tests passés.
+- `npm run typecheck`: OK après durcissement.
+- `npm test`: OK, 15 tests passés.
 - `npm run build`: OK.
-- `npm_config_cache=/private/tmp/robots-txt-kit-npm-cache npm pack --dry-run`: OK, tarball prévue `robots-txt-kit-0.1.0.tgz`, 8 fichiers, 12.1 kB packed.
+- `npm_config_cache=/private/tmp/robots-txt-kit-npm-cache npm pack --dry-run`: OK, tarball prévue `robots-txt-kit-0.1.0.tgz`, 8 fichiers, 12.7 kB packed.
 - Passe conformité stricte 2026-05-14: NO-GO publication tant que les règles de groupe et fixtures RFC ne sont pas durcies.
+- Passe de durcissement 2026-05-14: groupes multiples et entrées runtime corrigés; publication toujours différée jusqu'aux fixtures RFC/crawlers.
 
 ## État Git local
 
 - Tentative lancée uniquement dans `/Users/guillaumepapinutti/Developer/ExperienceAlpha/draft-libs/robots-txt-kit`.
-- `git init`: échec avec `.git: Operation not permitted`.
-- `git branch -M main`, `git config`, `git add` et `git commit`: non exécutés car `git init` a échoué.
+- `git init`: OK lors d'une passe ultérieure.
+- `git branch -M main`: a affiché un message `HEAD.lock`, mais le dépôt est bien sur `main`.
+- Commits locaux créés dans le dossier du brouillon.
 - Aucun remote ajouté.
 - Aucune commande Git n'a été lancée dans le workspace parent.
