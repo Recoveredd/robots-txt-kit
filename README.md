@@ -1,6 +1,7 @@
 # robots-txt-kit
 
 [![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/Recoveredd/robots-txt-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Recoveredd/robots-txt-kit/actions/workflows/ci.yml)
 
 Parse and evaluate `robots.txt` rules with structured diagnostics.
 
@@ -83,6 +84,7 @@ Small helper for extracting valid `Sitemap:` directives.
 Diagnostics are objects with stable `code` values and optional line numbers:
 
 - `invalid-input`
+- `invalid-options`
 - `empty-input`
 - `missing-colon`
 - `empty-directive`
@@ -100,10 +102,19 @@ The MVP supports:
 - grouped adjacent `User-agent` lines;
 - merging rules from multiple groups with the same best matching user-agent;
 - wildcard `*` and end-anchor `$` path matching;
+- percent-encoding normalization for path inputs such as `/café`;
 - most-specific rule selection, with `Allow` winning specificity ties;
 - browser, worker and build-tool usage with no runtime dependencies.
 
 It intentionally does not fetch remote `robots.txt` files, cache domains, implement every crawler-specific extension, ship a public suffix list, or replace crawler-specific validators. Treat it as a portable inspector for local policy checks.
+
+## Package quality
+
+- TypeScript types are generated from the source.
+- ESM-only package with no runtime dependencies.
+- Defensive API: invalid inputs and invalid runtime options return diagnostics instead of throwing.
+- CI runs `npm ci`, `typecheck`, `build`, and `test`.
+- Tested on Node.js 20 and 22 with GitHub Actions.
 
 ## License
 

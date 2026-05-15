@@ -186,6 +186,22 @@ Disallow: /blocked`;
     );
   });
 
+  it("reports invalid runtime options without throwing", () => {
+    const result = checkRobotsTxt("User-agent: *\nDisallow: /private", "/private", null as never);
+
+    expect(result.allowed).toBe(false);
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "invalid-options" })
+    );
+  });
+
+  it("normalizes non-ASCII path input before matching percent-encoded rules", () => {
+    const robots = `User-agent: *\nDisallow: /caf%C3%A9`;
+
+    expect(checkRobotsTxt(robots, "/café").allowed).toBe(false);
+    expect(checkRobotsTxt(robots, "https://example.com/café").allowed).toBe(false);
+  });
+
   it("can match a pre-parsed document and custom default", () => {
     const parsed = parseRobotsTxt("User-agent: ExampleBot\nDisallow: /blocked");
     const result = matchRobotsTxt(parsed.document, "/free", {
@@ -195,6 +211,15 @@ Disallow: /blocked`;
 
     expect(result.allowed).toBe(false);
     expect(result.rule).toBeUndefined();
+  });
+
+  it("does not throw when a pre-parsed document shape is invalid at runtime", () => {
+    const result = matchRobotsTxt(null as never, "/blocked", { defaultAllowed: false });
+
+    expect(result.allowed).toBe(false);
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ code: "invalid-input" })
+    );
   });
 
   it("returns sitemap helpers for quick inspection", () => {

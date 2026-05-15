@@ -1,5 +1,6 @@
 export type RobotsTxtDiagnosticCode =
   | "invalid-input"
+  | "invalid-options"
   | "empty-input"
   | "missing-colon"
   | "empty-directive"
@@ -221,12 +222,13 @@ export function checkRobotsTxt(
   options: CheckRobotsTxtOptions = {}
 ): RobotsTxtMatch {
   const parsed = parseRobotsTxt(input);
+  const normalizedOptions = normalizeOptions(options);
   const matchOptions: CheckRobotsTxtOptions & { diagnostics: RobotsTxtDiagnostic[] } = {
-    diagnostics: parsed.diagnostics
+    diagnostics: [...parsed.diagnostics, ...normalizedOptions.diagnostics]
   };
-  if (options.userAgent !== undefined) matchOptions.userAgent = options.userAgent;
-  if (options.defaultAllowed !== undefined) {
-    matchOptions.defaultAllowed = options.defaultAllowed;
+  if (normalizedOptions.value.userAgent !== undefined) matchOptions.userAgent = normalizedOptions.value.userAgent;
+  if (normalizedOptions.value.defaultAllowed !== undefined) {
+    matchOptions.defaultAllowed = normalizedOptions.value.defaultAllowed;
   }
   return matchRobotsTxt(parsed.document, urlOrPath, matchOptions);
 }
@@ -236,11 +238,21 @@ export function matchRobotsTxt(
   urlOrPath: unknown,
   options: CheckRobotsTxtOptions & { diagnostics?: RobotsTxtDiagnostic[] } = {}
 ): RobotsTxtMatch {
-  const diagnostics = [...(options.diagnostics ?? [])];
-  const userAgent = normalizeAgent(options.userAgent ?? "*") ?? "*";
+  const normalizedOptions = normalizeOptions(options);
+  const diagnostics = [
+    ...(!options || typeof options !== "object" || Array.isArray(options) ? [] : (options.diagnostics ?? [])),
+    ...normalizedOptions.diagnostics
+  ];
+  const userAgent = normalizeAgent(normalizedOptions.value.userAgent ?? "*") ?? "*";
   const path = normalizePath(urlOrPath, diagnostics);
+  const defaultAllowed = normalizedOptions.value.defaultAllowed ?? true;
+
+  if (!isRobotsDocument(document)) {
+    diagnostics.push(diagnostic("invalid-input", "robots.txt document must contain a groups array."));
+    return { allowed: defaultAllowed, userAgent, path, diagnostics };
+  }
+
   const group = selectGroup(document.groups, userAgent);
-  const defaultAllowed = options.defaultAllowed ?? true;
 
   if (!group) {
     return { allowed: defaultAllowed, userAgent, path, diagnostics };
@@ -299,16 +311,64 @@ function normalizePath(urlOrPath: unknown, diagnostics: RobotsTxtDiagnostic[]): 
     return "/";
   }
 
-  if (urlOrPath.startsWith("/")) return urlOrPath;
+  if (urlOrPath.startsWith("/")) return encodeRobotsPath(urlOrPath);
 
   try {
     const url = new URL(urlOrPath);
-    return `${url.pathname}${url.search}`;
+    return encodeRobotsPath(`${url.pathname}${url.search}`);
   } catch {
     diagnostics.push(
       diagnostic("invalid-url", "URL input was not absolute, so it was treated as a path.")
     );
-    return urlOrPath.length > 0 ? urlOrPath : "/";
+    return urlOrPath.length > 0 ? encodeRobotsPath(urlOrPath) : "/";
+  }
+}
+
+function normalizeOptions(options: unknown): {
+  value: CheckRobotsTxtOptions;
+  diagnostics: RobotsTxtDiagnostic[];
+} {
+  if (options === undefined) return { value: {}, diagnostics: [] };
+  if (!options || typeof options !== "object" || Array.isArray(options)) {
+    return {
+      value: {},
+      diagnostics: [diagnostic("invalid-options", "Options must be an object when provided.")]
+    };
+  }
+
+  const raw = options as CheckRobotsTxtOptions;
+  const value: CheckRobotsTxtOptions = {};
+  const diagnostics: RobotsTxtDiagnostic[] = [];
+
+  if (raw.userAgent !== undefined && typeof raw.userAgent !== "string") {
+    diagnostics.push(diagnostic("invalid-options", "userAgent must be a string when provided."));
+  } else if (raw.userAgent !== undefined) {
+    value.userAgent = raw.userAgent;
+  }
+
+  if (raw.defaultAllowed !== undefined && typeof raw.defaultAllowed !== "boolean") {
+    diagnostics.push(diagnostic("invalid-options", "defaultAllowed must be a boolean when provided."));
+  } else if (raw.defaultAllowed !== undefined) {
+    value.defaultAllowed = raw.defaultAllowed;
+  }
+
+  return { value, diagnostics };
+}
+
+function isRobotsDocument(value: unknown): value is RobotsTxtDocument {
+  return Boolean(value && typeof value === "object" && Array.isArray((value as RobotsTxtDocument).groups));
+}
+
+function encodeRobotsPath(value: string): string {
+  try {
+    const tokens: string[] = [];
+    const protectedValue = value.replace(/%[0-9a-fA-F]{2}/g, (token) => {
+      const index = tokens.push(token) - 1;
+      return `__ROBOTS_PERCENT_${index}__`;
+    });
+    return encodeURI(protectedValue).replace(/__ROBOTS_PERCENT_(\d+)__/g, (_, index: string) => tokens[Number(index)] ?? "");
+  } catch {
+    return value;
   }
 }
 
