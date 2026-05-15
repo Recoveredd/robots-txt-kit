@@ -7,6 +7,8 @@ Parse and evaluate `robots.txt` rules with structured diagnostics.
 
 `robots-txt-kit` is a clean-room TypeScript draft for tools that need to inspect crawl policy without fetching files, caching domains, or depending on Node-only APIs.
 
+Links: [Demo](https://packages.wasta-wocket.fr/robots-txt-kit/) · [GitHub](https://github.com/Recoveredd/robots-txt-kit)
+
 ## Install
 
 ```bash
