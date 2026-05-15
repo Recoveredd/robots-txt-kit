@@ -1,5 +1,6 @@
 # robots-txt-kit
 
+[![npm version](https://img.shields.io/npm/v/robots-txt-kit.svg)](https://www.npmjs.com/package/robots-txt-kit)
 [![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/Recoveredd/robots-txt-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Recoveredd/robots-txt-kit/actions/workflows/ci.yml)
 
@@ -7,7 +8,7 @@ Parse and evaluate `robots.txt` rules with structured diagnostics.
 
 `robots-txt-kit` is a clean-room TypeScript draft for tools that need to inspect crawl policy without fetching files, caching domains, or depending on Node-only APIs.
 
-Links: [Demo](https://packages.wasta-wocket.fr/robots-txt-kit/) · [GitHub](https://github.com/Recoveredd/robots-txt-kit)
+Links: [Demo](https://packages.wasta-wocket.fr/robots-txt-kit/) · [npm](https://www.npmjs.com/package/robots-txt-kit) · [GitHub](https://github.com/Recoveredd/robots-txt-kit)
 
 ## Install
 
